@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   getSources: () => ipcRenderer.invoke('get-sources'),
+  setDesiredSource: (id) => ipcRenderer.invoke('set-desired-source', id),
   getScreenSize: () => ipcRenderer.invoke('get-screen-size'),
   injectInput: (action) => ipcRenderer.invoke('inject-input', action),
   getClipboardText: () => ipcRenderer.invoke('get-clipboard-text'),

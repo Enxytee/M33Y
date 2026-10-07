@@ -164,16 +164,8 @@ async function startHost() {
   try {
     const sourceId = sourceSelect.value;
     if (!sourceId) throw new Error('No screen source selected — try reopening the app.');
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: {
-        mandatory: {
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: sourceId,
-          maxFrameRate: 30,
-        },
-      },
-    });
+    await window.electronAPI.setDesiredSource(sourceId);
+    localStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
     localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
     clearTimeout(mediaTimeout);
     mediaReady();

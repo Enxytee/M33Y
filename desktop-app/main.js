@@ -1,7 +1,12 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, screen, clipboard, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+
+// Fixes a common Windows issue where screen-share capture comes through
+// completely black due to GPU/driver interaction with hardware-accelerated
+// compositing. Must be called before app.whenReady().
+app.disableHardwareAcceleration();
 
 let mainWindow;
 let nut; // lazy-loaded (native module)
@@ -28,9 +33,33 @@ app.on('window-all-closed', () => {
 });
 
 // ---- List available screens/windows to share ----
+let cachedSources = [];
+let desiredSourceId = null;
+
 ipcMain.handle('get-sources', async () => {
-  const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 300, height: 180 } });
-  return sources.map((s) => ({ id: s.id, name: s.name, thumbnail: s.thumbnail.toDataURL() }));
+  cachedSources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 300, height: 180 } });
+  return cachedSources.map((s) => ({ id: s.id, name: s.name, thumbnail: s.thumbnail.toDataURL() }));
+});
+
+// Tells the main process which source the renderer is about to request via
+// getDisplayMedia, so our setDisplayMediaRequestHandler below can hand back
+// exactly that source instead of popping Electron's own system picker.
+ipcMain.handle('set-desired-source', (_evt, id) => {
+  desiredSourceId = id;
+});
+
+// Modern, actively-maintained screen capture path (replaces the old
+// chromeMediaSource:'desktop' + mandatory-constraints getUserMedia trick,
+// which is known to produce an all-black video on some Windows GPU/driver
+// combinations). useSystemPicker:false keeps our own source-picker UI.
+app.whenReady().then(() => {
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (request, callback) => {
+      const match = cachedSources.find((s) => s.id === desiredSourceId) || cachedSources[0];
+      callback({ video: match, audio: undefined });
+    },
+    { useSystemPicker: false }
+  );
 });
 
 // ---- QR code for the mobile viewer (no typing needed on the phone) ----
