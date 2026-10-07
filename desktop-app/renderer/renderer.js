@@ -81,6 +81,9 @@ async function startHost() {
   const url = serverUrlInput.value.trim();
   if (!url) return (hostStatus.textContent = 'Enter the signaling server URL first.');
 
+  const hostPassword = document.getElementById('hostPassword').value;
+  if (!hostPassword) return (hostStatus.textContent = 'Set an access password first.');
+
   hostStatus.textContent = 'Connecting to signaling server...';
   try {
     ws = await connectSignaling(url);
@@ -89,44 +92,24 @@ async function startHost() {
     return;
   }
 
-  const hostPassword = document.getElementById('hostPassword').value;
-  if (!hostPassword) return (hostStatus.textContent = 'Set an access password first.');
-
-  qrToken = crypto.randomUUID();
-  ws.send(JSON.stringify({ type: 'register', code: sessionCode, role: 'host', password: hostPassword, qrToken }));
-  hostStatus.textContent = `Waiting for connection... your code is ${sessionCode}`;
-
-  const deepLink = `${MOBILE_VIEWER_URL}?code=${encodeURIComponent(sessionCode)}&qrToken=${encodeURIComponent(qrToken)}`;
-  try {
-    const qrDataUrl = await window.electronAPI.generateQr(deepLink);
-    document.getElementById('qrImage').src = qrDataUrl;
-    document.getElementById('qrBlock').classList.remove('hidden');
-  } catch (err) {
-    console.error('QR generation failed:', err);
-  }
-
-  const sourceId = sourceSelect.value;
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: 'desktop',
-        chromeMediaSourceId: sourceId,
-        maxFrameRate: 30,
-      },
-    },
-  });
-
+  // Create the peer connection and data channel, and attach the signaling
+  // message handler IMMEDIATELY — before any slow async work (QR generation,
+  // getUserMedia) below. Otherwise a phone that scans the QR code very fast
+  // can have its 'connect-request'/'peer-joined' arrive and be silently
+  // dropped because nothing was listening yet, which used to require
+  // reloading the mobile page a few times before it "caught".
   pc = newPeerConnection();
-  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-
   dataChannel = pc.createDataChannel('control');
   setupHostDataChannel();
+
+  let mediaReady;
+  const mediaReadyPromise = new Promise((resolve) => { mediaReady = resolve; });
 
   ws.onmessage = async (event) => {
     const msg = JSON.parse(event.data);
     if (msg.type === 'peer-joined') {
       hostStatus.textContent = 'Viewer joined, connecting...';
+      await mediaReadyPromise; // make sure the screen track is already added before offering
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }));
@@ -142,6 +125,32 @@ async function startHost() {
       hostStatus.textContent = msg.message;
     }
   };
+
+  qrToken = crypto.randomUUID();
+  ws.send(JSON.stringify({ type: 'register', code: sessionCode, role: 'host', password: hostPassword, qrToken }));
+  hostStatus.textContent = `Waiting for connection... your code is ${sessionCode}`;
+
+  const deepLink = `${MOBILE_VIEWER_URL}?code=${encodeURIComponent(sessionCode)}&qrToken=${encodeURIComponent(qrToken)}`;
+  window.electronAPI.generateQr(deepLink)
+    .then((qrDataUrl) => {
+      document.getElementById('qrImage').src = qrDataUrl;
+      document.getElementById('qrBlock').classList.remove('hidden');
+    })
+    .catch((err) => console.error('QR generation failed:', err));
+
+  const sourceId = sourceSelect.value;
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio: false,
+    video: {
+      mandatory: {
+        chromeMediaSource: 'desktop',
+        chromeMediaSourceId: sourceId,
+        maxFrameRate: 30,
+      },
+    },
+  });
+  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+  mediaReady();
 }
 
 document.getElementById('approveBtn').onclick = () => {
