@@ -1,6 +1,10 @@
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  // Add a TURN server here too if connections fail on strict mobile networks.
+  // Free public TURN relay (Open Relay Project) — needed because direct P2P
+  // often fails between a phone (mobile data / carrier NAT) and a PC.
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 
 let ws, pc, dataChannel;
@@ -100,6 +104,13 @@ async function connect(opts) {
   ws.send(JSON.stringify(registerMsg));
 
   pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  pc.oniceconnectionstatechange = () => {
+    if (pc.iceConnectionState === 'failed') {
+      statusEl.textContent = '⚠ Connection failed — network blocked it. Try a different network (e.g. switch off mobile data / wifi).';
+    } else if (pc.iceConnectionState === 'disconnected') {
+      statusEl.textContent = '⚠ Connection lost. Reconnect to try again.';
+    }
+  };
   pc.onicecandidate = (e) => {
     if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
   };

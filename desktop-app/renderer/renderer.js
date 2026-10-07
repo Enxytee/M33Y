@@ -1,8 +1,12 @@
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
-  // If connections fail on strict networks (hotel/office wifi), add a TURN
-  // server here, e.g.:
-  // { urls: 'turn:your-turn-server.com:3478', username: 'user', credential: 'pass' }
+  // Free public TURN relay (Open Relay Project) — needed because direct P2P
+  // often fails between a phone (mobile data / carrier NAT) and a PC, or on
+  // strict office/hotel wifi. Fine for personal use; swap in your own TURN
+  // server here if you want guaranteed uptime: { urls, username, credential }.
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ];
 
 // The phone scans a QR code pointing at this hosted page, which auto-connects
@@ -67,11 +71,22 @@ function connectSignaling(url) {
   });
 }
 
-function newPeerConnection() {
+function newPeerConnection(statusEl) {
   const conn = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   conn.onicecandidate = (e) => {
     if (e.candidate) ws.send(JSON.stringify({ type: 'ice-candidate', candidate: e.candidate }));
   };
+  // Surface connection problems instead of leaving the status stuck forever
+  // with no explanation (this is what used to happen on strict networks).
+  if (statusEl) {
+    conn.oniceconnectionstatechange = () => {
+      if (conn.iceConnectionState === 'failed') {
+        statusEl.textContent = '⚠ Connection failed — network blocked the connection. Try a different network.';
+      } else if (conn.iceConnectionState === 'disconnected') {
+        statusEl.textContent = '⚠ Connection lost (network dropped). Reconnect to try again.';
+      }
+    };
+  }
   return conn;
 }
 
@@ -98,18 +113,26 @@ async function startHost() {
   // can have its 'connect-request'/'peer-joined' arrive and be silently
   // dropped because nothing was listening yet, which used to require
   // reloading the mobile page a few times before it "caught".
-  pc = newPeerConnection();
+  pc = newPeerConnection(hostStatus);
   dataChannel = pc.createDataChannel('control');
   setupHostDataChannel();
 
-  let mediaReady;
-  const mediaReadyPromise = new Promise((resolve) => { mediaReady = resolve; });
+  let mediaReady, mediaFailed;
+  const mediaReadyPromise = new Promise((resolve, reject) => { mediaReady = resolve; mediaFailed = reject; });
+  // Safety net: if screen capture hangs for any reason, don't leave the status
+  // stuck on "connecting..." forever with no explanation.
+  const mediaTimeout = setTimeout(() => mediaFailed(new Error('Timed out waiting for screen capture to start.')), 15000);
 
   ws.onmessage = async (event) => {
     const msg = JSON.parse(event.data);
     if (msg.type === 'peer-joined') {
       hostStatus.textContent = 'Viewer joined, connecting...';
-      await mediaReadyPromise; // make sure the screen track is already added before offering
+      try {
+        await mediaReadyPromise; // make sure the screen track is already added before offering
+      } catch (err) {
+        hostStatus.textContent = `⚠ Could not start screen sharing: ${err.message}`;
+        return;
+      }
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }));
@@ -138,19 +161,28 @@ async function startHost() {
     })
     .catch((err) => console.error('QR generation failed:', err));
 
-  const sourceId = sourceSelect.value;
-  localStream = await navigator.mediaDevices.getUserMedia({
-    audio: false,
-    video: {
-      mandatory: {
-        chromeMediaSource: 'desktop',
-        chromeMediaSourceId: sourceId,
-        maxFrameRate: 30,
+  try {
+    const sourceId = sourceSelect.value;
+    if (!sourceId) throw new Error('No screen source selected — try reopening the app.');
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        mandatory: {
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: sourceId,
+          maxFrameRate: 30,
+        },
       },
-    },
-  });
-  localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
-  mediaReady();
+    });
+    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    clearTimeout(mediaTimeout);
+    mediaReady();
+  } catch (err) {
+    clearTimeout(mediaTimeout);
+    console.error('getUserMedia failed:', err);
+    hostStatus.textContent = `⚠ Could not start screen sharing: ${err.message}`;
+    mediaFailed(err);
+  }
 }
 
 document.getElementById('approveBtn').onclick = () => {
@@ -243,7 +275,7 @@ async function startViewer() {
   const viewerPassword = document.getElementById('joinPassword').value;
   ws.send(JSON.stringify({ type: 'register', code, role: 'viewer', password: viewerPassword }));
 
-  pc = newPeerConnection();
+  pc = newPeerConnection(viewerStatus);
   pc.ontrack = (event) => {
     remoteVideo.srcObject = event.streams[0];
     setupDiv.classList.add('hidden');
