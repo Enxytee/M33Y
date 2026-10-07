@@ -1,0 +1,38 @@
+* { box-sizing: border-box; font-family: -apple-system, Segoe UI, Arial, sans-serif; }
+.hidden { display: none !important; }
+body { margin: 0; background: #1e1f24; color: #eee; height: 100vh; }
+#setup { max-width: 480px; margin: 0 auto; padding: 30px 20px; }
+h1 { font-size: 20px; text-align: center; margin-bottom: 20px; }
+label { display: block; margin: 10px 0 4px; font-size: 13px; color: #aaa; }
+input, select {
+  width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid #444;
+  background: #2a2b31; color: #fff; font-size: 14px;
+}
+.tabs { display: flex; margin: 20px 0 10px; }
+.tab {
+  flex: 1; padding: 10px; background: #2a2b31; color: #ccc; border: none;
+  cursor: pointer; border-bottom: 2px solid transparent;
+}
+.tab.active { border-bottom: 2px solid #4da3ff; color: #fff; }
+.panel.hidden { display: none; }
+.code {
+  font-size: 32px; letter-spacing: 6px; text-align: center; margin: 14px 0;
+  background: #2a2b31; padding: 14px; border-radius: 8px;
+}
+button#startHost, button#startViewer {
+  margin-top: 14px; width: 100%; padding: 10px; background: #4da3ff; color: #fff;
+  border: none; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+.status { font-size: 13px; color: #9fd3a0; min-height: 18px; }
+#viewerScreen.hidden { display: none; }
+#viewerScreen { position: relative; width: 100vw; height: 100vh; background: #000; }
+#remoteVideo { width: 100%; height: 100%; object-fit: contain; cursor: none; }
+#toolbar {
+  position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; align-items: center;
+}
+#toolbar button, #fileSendLabel {
+  padding: 8px 14px; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+  background: #333a44;
+}
+#disconnectBtn { background: #ff5555 !important; }
+#transferStatus { color: #9fd3a0; font-size: 12px; background: rgba(0,0,0,.5); padding: 4px 8px; border-radius: 4px; }

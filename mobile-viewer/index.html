@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>M33YdESK Mobile</title>
+  <link rel="icon" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="setup">
+    <h1><img src="logo.png" alt="" style="width:26px; height:26px; vertical-align:middle; margin-right:8px;" />M33YdESK</h1>
+    <p class="hint">Connect to a computer from your phone</p>
+
+    <input id="serverUrl" type="hidden" value="wss://m33y.onrender.com" />
+
+    <div id="codeFieldGroup">
+      <label>Code (shown on the host computer)</label>
+      <input id="joinCode" maxlength="6" placeholder="123456" inputmode="numeric" />
+    </div>
+
+    <div id="passwordFieldGroup">
+      <label>Password</label>
+      <input id="joinPassword" type="password" placeholder="Password" />
+    </div>
+
+    <button id="connectBtn">Connect</button>
+    <p id="status" class="status"></p>
+  </div>
+
+  <div id="screen" class="hidden">
+    <video id="remoteVideo" autoplay playsinline muted></video>
+
+    <!-- invisible text field used purely to pop up the phone's keyboard -->
+    <input id="hiddenInput" class="hidden-input" autocomplete="off" autocapitalize="off" autocorrect="off" />
+
+    <div id="topBar">
+      <button id="disconnectBtn">✕ Disconnect</button>
+      <label id="fileSendLabel">
+        📎
+        <input id="fileInput" type="file" multiple hidden />
+      </label>
+      <button id="keyboardBtn">⌨ Keyboard</button>
+    </div>
+    <div id="transferBar" class="hidden"><span id="transferStatus"></span></div>
+
+    <div id="keyRow" class="hidden">
+      <button data-key="Escape">Esc</button>
+      <button data-key="Tab">Tab</button>
+      <button data-key="ControlLeft">Ctrl</button>
+      <button data-key="AltLeft">Alt</button>
+      <button data-key="ArrowLeft">←</button>
+      <button data-key="ArrowUp">↑</button>
+      <button data-key="ArrowDown">↓</button>
+      <button data-key="ArrowRight">→</button>
+      <button data-key="Backspace">⌫</button>
+      <button data-key="Enter">⏎</button>
+    </div>
+
+    <div id="bottomBar">
+      <span class="tip">1-finger drag: move cursor · tap: click · 2-finger drag: scroll · 2-finger tap: right-click</span>
+    </div>
+  </div>
+
+  <script src="viewer.js"></script>
+</body>
+</html>

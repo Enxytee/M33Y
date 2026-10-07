@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>M33YdESK</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="setup">
+    <h1><img src="logo.png" alt="" style="width:28px; height:28px; vertical-align:middle; margin-right:8px;" />M33YdESK</h1>
+
+    <input id="serverUrl" type="hidden" value="wss://m33y.onrender.com" />
+
+    <div class="tabs">
+      <button id="tabHost" class="tab active">Share my screen (Host)</button>
+      <button id="tabViewer" class="tab">Connect to a computer (Viewer)</button>
+    </div>
+
+    <div id="hostPanel" class="panel">
+      <p>Give this code to yourself on the other computer:</p>
+      <div class="code" id="hostCode">------</div>
+      <select id="sourceSelect"></select>
+      <label>Access password (required for anyone connecting)</label>
+      <input id="hostPassword" type="password" placeholder="Set a password" />
+      <button id="startHost">Start Sharing</button>
+      <p id="hostStatus" class="status"></p>
+      <p id="lastAction" class="status" style="color:#888;"></p>
+      <p style="font-size:11px; color:#777; margin-top:4px;">Tip: once connected, drag a file onto this window, or paste (Ctrl+V) a copied file/image, to send it to the viewer.</p>
+
+      <div id="qrBlock" class="hidden" style="text-align:center; margin-top:16px;">
+        <p style="color:#aaa; font-size:13px; margin-bottom:8px;">Scan with your phone to connect instantly — no typing needed:</p>
+        <img id="qrImage" style="background:#fff; padding:8px; border-radius:8px; width:180px; height:180px;" />
+      </div>
+    </div>
+
+    <!-- Approval popup shown when someone connects via QR code -->
+    <div id="approvalModal" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center;">
+      <div style="background:#2a2b31; padding:24px; border-radius:12px; max-width:320px; text-align:center;">
+        <img src="logo.png" alt="" style="width:36px; height:36px; margin-bottom:10px;" />
+        <p style="font-size:16px; margin-bottom:18px;">Someone wants to connect to your screen via QR code.</p>
+        <div style="display:flex; gap:10px;">
+          <button id="denyBtn" style="flex:1; padding:10px; background:#ff5555; color:#fff; border:none; border-radius:6px;">Deny</button>
+          <button id="approveBtn" style="flex:1; padding:10px; background:#4da3ff; color:#fff; border:none; border-radius:6px;">Accept</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewerPanel" class="panel hidden">
+      <label>Enter the code shown on the host computer</label>
+      <input id="joinCode" maxlength="6" placeholder="123456" />
+      <label>Password</label>
+      <input id="joinPassword" type="password" placeholder="Password" />
+      <button id="startViewer">Connect</button>
+      <p id="viewerStatus" class="status"></p>
+    </div>
+  </div>
+
+  <div id="viewerScreen" class="hidden">
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <div id="toolbar">
+      <button id="disconnectBtn">Disconnect</button>
+      <button id="clipboardBtn" title="Send your clipboard text to the host">Send Clipboard →</button>
+      <label id="fileSendLabel" title="Send a file to the host">
+        Send File →
+        <input id="fileInput" type="file" multiple hidden />
+      </label>
+      <span id="transferStatus"></span>
+      <span style="font-size:11px; color:#888;">(or drag a file / paste onto the screen)</span>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
